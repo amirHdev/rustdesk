@@ -372,6 +372,9 @@ class InputModel {
   static const int _wheelAccelMediumThresholdUs = 80000; // 80ms
   static const double _wheelBurstVelocityThreshold =
       0.002; // delta units per microsecond
+  // Wheel burst acceleration (empirical tuning).
+  // Applies only to fast, non-smooth bursts to preserve single-step scrolling.
+  // Flutter uses microseconds for dt, so velocity is in delta/us.
 
   // Relative mouse mode (for games/3D apps).
   final relativeMouseMode = false.obs;
@@ -1426,7 +1429,7 @@ class InputModel {
       if (!isSmooth &&
           dtUs > 0 &&
           dtUs <= _wheelAccelMediumThresholdUs &&
-          Platform.isWindows &&
+          (isWindows || isLinux) &&
           peerPlatform == kPeerPlatformMacOS) {
         final velocity = dominantDelta / dtUs;
         if (velocity >= _wheelBurstVelocityThreshold) {

@@ -147,6 +147,9 @@ var WHEEL_ACCEL_DT_FAST = 0.04;
 var WHEEL_ACCEL_DT_MEDIUM = 0.08;
 var WHEEL_ACCEL_VALUE_FAST = 3;
 var WHEEL_ACCEL_VALUE_MEDIUM = 2;
+// Wheel burst acceleration (empirical tuning).
+// Applies only on fast, non-smooth wheel bursts to keep single-step scroll unchanged.
+// Sciter uses seconds for dt, so velocity is in delta/sec.
 
 // not good, precision not enough to simulate acceleration effect,
 // seems have to use pixel based rather line based delta
@@ -252,7 +255,7 @@ function handler.onMouse(evt)
             var dominant = abs_dx > abs_dy ? abs_dx : abs_dy;
             var is_smooth = dominant < 1;
             var accel = 1;
-            if (!is_smooth && dt > 0 && is_win && get_peer_platform() == "Mac OS") {
+            if (!is_smooth && dt > 0 && (is_win || is_linux) && get_peer_platform() == "Mac OS") {
                 var velocity = dominant / dt;
                 if (velocity >= WHEEL_ACCEL_VELOCITY_THRESHOLD) {
                     if (dt < WHEEL_ACCEL_DT_FAST) accel = WHEEL_ACCEL_VALUE_FAST;
@@ -316,11 +319,13 @@ function handler.onMouse(evt)
         entered = true;
         stdout.println("enter");
         handler.enter(handler.get_keyboard_mode());
+        last_wheel_time = 0;
         return keyboard_enabled;
       case Event.MOUSE_LEAVE:
         entered = false;
         stdout.println("leave");
         handler.leave(handler.get_keyboard_mode());
+        last_wheel_time = 0;
         if (is_left_down && get_peer_platform() == "Android") {
             is_left_down = false;
             handler.send_mouse((1 << 3) | 2, 0, 0, evt.altKey,

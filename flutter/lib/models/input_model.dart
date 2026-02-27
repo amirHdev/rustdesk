@@ -371,7 +371,7 @@ class InputModel {
   static const int _wheelAccelFastThresholdUs = 40000; // 40ms
   static const int _wheelAccelMediumThresholdUs = 80000; // 80ms
   static const double _wheelBurstVelocityThreshold =
-      0.005; // delta units per microsecond
+      0.002; // delta units per microsecond
   // Wheel burst acceleration (empirical tuning).
   // Applies only to fast, non-smooth bursts to preserve single-step scrolling.
   // Flutter uses microseconds for dt, so velocity is in delta/us.

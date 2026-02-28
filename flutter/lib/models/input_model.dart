@@ -366,6 +366,7 @@ class InputModel {
   int _lastButtons = 0;
   Offset lastMousePos = Offset.zero;
   int _lastWheelTsUs = 0;
+  int _lastTrackpadTsUs = 0;
 
   // Wheel acceleration thresholds.
   static const int _wheelAccelFastThresholdUs = 40000; // 40ms
@@ -375,6 +376,14 @@ class InputModel {
   // Wheel burst acceleration (empirical tuning).
   // Applies only to fast, non-smooth bursts to preserve single-step scrolling.
   // Flutter uses microseconds for dt, so velocity is in delta/us.
+  // Trackpad burst acceleration (empirical tuning).
+  // Applies only to fast bursts to avoid changing normal touchpad scrolling.
+  static const int _trackpadAccelFastThresholdUs = 40000; // 40ms
+  static const int _trackpadAccelMediumThresholdUs = 80000; // 80ms
+  static const double _trackpadBurstVelocityThreshold =
+      0.0015; // delta units per microsecond
+  static const double _trackpadAccelFastFactor = 2.0;
+  static const double _trackpadAccelMediumFactor = 1.5;
 
   // Relative mouse mode (for games/3D apps).
   final relativeMouseMode = false.obs;
@@ -975,6 +984,7 @@ class InputModel {
     _pointerMovedAfterEnter = false;
     _pointerInsideImage = enter;
     _lastWheelTsUs = 0;
+    _lastTrackpadTsUs = 0;
 
     // Fix status
     if (!enter) {
@@ -1143,6 +1153,7 @@ class InputModel {
   void onPointerPanZoomStart(PointerPanZoomStartEvent e) {
     _lastScale = 1.0;
     _stopFling = true;
+    _lastTrackpadTsUs = 0;
     if (isViewOnly) return;
     if (isViewCamera) return;
     if (peerPlatform == kPeerPlatformAndroid) {
@@ -1171,6 +1182,22 @@ class InputModel {
     var delta = e.panDelta * _trackpadSpeedInner;
     if (isMacOS && peerPlatform == kPeerPlatformWindows) {
       delta *= _trackpadAdjustMacToWin;
+    }
+    if ((isWindows || isLinux) && peerPlatform == kPeerPlatformMacOS) {
+      final nowUs = e.timeStamp.inMicroseconds;
+      final dtUs = _lastTrackpadTsUs == 0 ? 0 : nowUs - _lastTrackpadTsUs;
+      _lastTrackpadTsUs = nowUs;
+      if (dtUs > 0 && dtUs <= _trackpadAccelMediumThresholdUs) {
+        final dominantDelta =
+            delta.dx.abs() > delta.dy.abs() ? delta.dx.abs() : delta.dy.abs();
+        final velocity = dominantDelta / dtUs;
+        if (velocity >= _trackpadBurstVelocityThreshold) {
+          final factor = dtUs < _trackpadAccelFastThresholdUs
+              ? _trackpadAccelFastFactor
+              : _trackpadAccelMediumFactor;
+          delta *= factor;
+        }
+      }
     }
     _trackpadLastDelta = delta;
 
